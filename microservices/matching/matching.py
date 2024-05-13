@@ -111,6 +111,7 @@ class OrderBook:
                         buy_order[3],
                         buy_order[4],
                         buy_order[5] - min_qty,
+                        buy_order[6],
                     )
                     heapq.heappush(self.buy_heap, new_buy_order)
 
@@ -122,6 +123,7 @@ class OrderBook:
                         sell_order[3],
                         sell_order[4],
                         sell_order[5] - min_qty,
+                        buy_order[6],
                     )
                     heapq.heappush(self.sell_heap, new_sell_order)
 
