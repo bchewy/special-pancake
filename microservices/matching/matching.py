@@ -120,7 +120,7 @@ def match_order(seller_order, buyer_order):
 
 @app.route("/", methods=["GET"])
 def index():
-    return jsonify({"message": "Order microservice is running"}), 200
+    return jsonify({"message": "healthy"}), 200
 
 
 @app.route("/exchange_report", methods=["GET"])
@@ -130,9 +130,19 @@ def get_exchange_report():
     return generate_xchange_report()
 
 
+@app.route("/client_report", methods=["GET"])
+def get_client_report():
+    return generate_client_report()
+
+
 # Matching Policies failed? storing in redis exchange_report hash with order id as key
 def store_failed_orders(order_id, reason):
     redis_client_xchange_report.hset("exchange_report", order_id, reason)
+
+
+# Updating client position into redis directly, so it can be taken out later on for report...
+def update_client_position(client_id, instrument_id, quantity):
+    redis_client_client.hset(client_id, instrument_id, quantity)
 
 
 ##### REPORT #####
@@ -146,6 +156,14 @@ def generate_xchange_report():
     exchange_report_csv = report_df.to_csv(index=False)
     print(exchange_report_csv)
     return jsonify({"exchange_report": exchange_report_csv}), 200
+
+
+def generate_client_report():
+    client_report = redis_client_client_report.hgetall("client_report")
+
+    # this client report consits a position of each client at the end of the trading day for each instrument.
+
+    return jsonify({"message": "client report"}), 200
 
 
 if __name__ == "__main__":
