@@ -9,7 +9,7 @@ import pika
 app = Flask(__name__)
 
 # Initialize Redis client
-redis_client_orders  = Redis(host="localhost", port=6379, db=0)
+redis_client_orders = Redis(host="localhost", port=6379, db=0)
 redis_client_client = Redis(host="localhost", port=6379, db=1)
 redis_client_instrument = Redis(host="localhost", port=6379, db=2)
 
@@ -207,11 +207,21 @@ def add_order():
     return jsonify({"message": "Order received", "order_data": order_data}), 201
 
 
+# Matching Policies failed? storing in redis exchange_report hash with order id as key
+def store_failed_orders(order_id, reason):
+    redis_client_xchange_report.hset("exchange_report", order_id, reason)
+
+
 ##### REPORT #####
 def generate_xchange_report():
-    
-
-
+    exchange_report = redis_client_xchange_report.hgetall("exchange_report")
+    # Convert the exchange report dictionary to a DataFrame for better CSV display
+    report_df = pd.DataFrame(
+        list(exchange_report.items()), columns=["Order Id", "Rejection Reason"]
+    )
+    # Convert DataFrame to CSV format for display
+    exchange_report_csv = report_df.to_csv(index=False)
+    return jsonify({"exchange_report": exchange_report_csv}), 200
 
 
 if __name__ == "__main__":
