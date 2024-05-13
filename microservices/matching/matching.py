@@ -32,24 +32,10 @@ CLIENTS.extend(pd.read_csv("data-set/example-set/input_clients.csv").to_dict(ori
 STOCKS.extend(pd.read_csv("data-set/example-set/stocks.csv").to_dict(orient='records'))
 
 
-# Initialize RabbitMQ connection
-rabbitmq_credentials = pika.PlainCredentials("guest", "guest")
-rabbitmq_parameters = pika.ConnectionParameters(
-    "localhost", 5672, "/", rabbitmq_credentials
-)
-rabbitmq_connection = pika.BlockingConnection(rabbitmq_parameters)
-rabbitmq_channel = rabbitmq_connection.channel()
-
-rabbitmq_channel.exchange_declare(exchange="order_exchange", exchange_type="direct")
-
-rabbitmq_channel.queue_declare(queue="order_queue")
-rabbitmq_channel.queue_declare(queue="log_queue")
-rabbitmq_channel.queue_bind(
-    exchange="order_exchange", queue="order_queue", routing_key="order.process"
-)
-rabbitmq_channel.queue_bind(
-    exchange="order_exchange", queue="log_queue", routing_key="order.log"
-)
+print("finish init")
+# print(ORDERS)
+# print(CLIENTS)
+# print(INSTRUMENTS)
 
 error_queue = []
 INSTRUMENT_TRACK = {}
@@ -63,12 +49,12 @@ class OrderBook:
     def add_order(
         self, order_type, price, client_rating, quantity, client_id, arrival_time, order_id
     ):
-        market_priority = 0 
+        market_priority = 0
         if price == "Market":
             market_priority = 0
         else:
             market_priority = 1
-            
+
         if price == "Market" and order_type == "Buy":
             actual_price = float("inf")
         elif price == "Market" and order_type == "Sell":
@@ -149,6 +135,7 @@ class OrderBook:
                 heapq.heappush(self.sell_heap, sell_order)
                 break  # Exit matching if top orders can't match
 
+
 # "check" defines which kind of policy it is
 # Call this function if the any matching policies fail
 
@@ -164,6 +151,8 @@ def did_not_pass(check, order_id):
         requests.post(endpoint_url, json={"order_id": order_id, "reason": "REJECTED - POSITION CHECK FAILED"})  
         error_queue.append("REJECTED - POSITION CHECK FAILED")
 
+
+book = OrderBook()
 
 
 def validate_instrument(instrument_curr, client_curr, quantity, lot_size, order_id):
@@ -225,7 +214,7 @@ continuous_time = datetime.strptime("16:00:00", "%H:%M:%S").time()
 closed_time = datetime.strptime("16:10:00", "%H:%M:%S").time()
 
 for order in ORDERS:
-
+    # print("performing per order")
     data_time = datetime.strptime(order.get("Time"), "%H:%M:%S").time()
     if not open_period and not continuous_period and not closed_period:
         if start_time < data_time < open_time:
@@ -234,13 +223,13 @@ for order in ORDERS:
             continuous_period = True
         elif continuous_time <= data_time < closed_time:
             closed_period = True
-        
+
     # Convert target time string to a time object
     instrument_curr = ""
     client_curr = ""
     lot_size = ""
     position_check = ""
-    
+
     for json_obj in INSTRUMENTS:
         if json_obj.get("InstrumentID") == order.get("Instrument"):
             instrument_curr = json_obj.get("Currency")
@@ -253,34 +242,78 @@ for order in ORDERS:
             if (position_check == "Y" or position_check == "y"):
                 validate_client(order.get("Client"), order.get("Instrument"))
             break
-    validate_order(order.get("Client"), instrument_curr, client_curr, order.get("Quantity"),lot_size, position_check, order.get("OrderID"))
-    
+    validate_order(
+        order.get("Client"),
+        order.get("Instrument"),
+        instrument_curr,
+        client_curr,
+        order.get("Quantity"),
+        lot_size,
+        position_check,
+    )
+
     if open_period:
         if data_time >= open_time:
             open_period = False
             continuous_period = True
             book.match_order()
-    
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
-    
+
+        book.add_order(
+            order.get("Side"),
+            order.get("Price"),
+            order.get("ClientRating"),
+            order.get("Quantity"),
+            order.get("Client"),
+            order.get("Time"),
+        )
+
     elif continuous_period:
         if data_time >= continuous_time:
             continuous_period = False
             closed_period = True
-    
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
+
+        book.add_order(
+            order.get("Side"),
+            order.get("Price"),
+            order.get("ClientRating"),
+            order.get("Quantity"),
+            order.get("Client"),
+            order.get("Time"),
+        )
         book.match_order()
     elif closed_period:
         if data_time >= open_time:
             open_period = False
             continuous_period = True
             book.match_order()
-            
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
-            
-print(book.buy_heap)
-print(book.sell_heap)
 
+        book.add_order(
+            order.get("Side"),
+            order.get("Price"),
+            order.get("ClientRating"),
+            order.get("Quantity"),
+            order.get("Client"),
+            order.get("Time"),
+        )
+
+print("-------------------")
+print("buy heap")
+print(book.buy_heap)
+print("-------------------")
+
+print("-------------------")
+print("sell heap")
+print(book.sell_heap)
+print("-------------------")
+
+
+# book.add_order("buy", "Market", 95, 100, "client1")
+# book.add_order("buy", 300, 90, 50, "client2")
+# book.add_order("sell", 305, 85, 30, "client3")
+# book.add_order("sell", "Market", 92, 70, "client4")
+
+# book.match_order()  # Perform matching
+# book.print_book()  # Print remaining orders in the book
 
 
 # for creating and queueing mega list
@@ -391,9 +424,6 @@ print(book.sell_heap)
 
 
 # #### INSTRUMENTS ###################################################################
-
-
-
 
 
 # ##### REPORT ###############################################################

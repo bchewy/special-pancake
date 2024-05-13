@@ -6,37 +6,38 @@ import HelloWorld from './components/HelloWorld.vue'
   Reports:
   <button @click="fetchReport">Get Report</button>
 
-  <div v-if="reports.clientReport">
+
+  <div v-if="reports.client_report">
     <h3>Client Report</h3>
     <table border="1">
       <tr>
-        <th v-for="(value, key) in reports.clientReport[0]" :key="key">{{ key }}</th>
+        <th v-for="(value, key) in reports.client_report[0]" :key="key">{{ key }}</th>
       </tr>
-      <tr v-for="item in reports.clientReport" :key="item.client_id">
+      <tr v-for="item in reports.client_report" :key="item.client_id">
         <td v-for="(value, key) in item" :key="key">{{ value }}</td>
       </tr>
     </table>
   </div>
 
-  <div v-if="reports.exchangeReport">
+  <div v-if="reports.exchange_report">
     <h3>Exchange Report</h3>
     <table border="1">
       <tr>
-        <th v-for="(value, key) in reports.exchangeReport[0]" :key="key">{{ key }}</th>
+        <th v-for="(value, key) in reports.exchange_report[0]" :key="key">{{ key }}</th>
       </tr>
-      <tr v-for="item in reports.exchangeReport" :key="item.order_id">
+      <tr v-for="item in reports.exchange_report" :key="item.order_id">
         <td v-for="(value, key) in item" :key="key">{{ value }}</td>
       </tr>
     </table>
   </div>
 
-  <div v-if="reports.instrumentReport">
+  <div v-if="reports.instrument_report">
     <h3>Instrument Report</h3>
     <table border="1">
       <tr>
-        <th v-for="(value, key) in reports.instrumentReport[0]" :key="key">{{ key }}</th>
+        <th v-for="(value, key) in reports.instrument_report[0]" :key="key">{{ key }}</th>
       </tr>
-      <tr v-for="item in reports.instrumentReport" :key="item.instrument_id">
+      <tr v-for="item in reports.instrument_report" :key="item.instrument_id">
         <td v-for="(value, key) in item" :key="key">{{ value }}</td>
       </tr>
     </table>
@@ -56,9 +57,9 @@ import HelloWorld from './components/HelloWorld.vue'
 import { ref } from 'vue';
 
 const reports = ref({
-  clientReport: null,
-  exchangeReport: null,
-  instrumentReport: null
+  client_report: null,
+  exchange_report: null,
+  instrument_report: null
 });
 
 // Function to parse CSV data
@@ -82,16 +83,31 @@ function parseCSV(csv) {
 
 const fetchReport = () => {
   // Simulated CSV data (replace these with actual fetch calls)
-  const clientCSV = "client_id,order_id,reason\n1,1,invalid policy\n";
-  const exchangeCSV = "order_id,reason\n1,invalid policy\n";
-  const instrumentCSV = "instrument_id,open_price,closed_price,total_traded_vol,day_high,day_low,vwap,timestamp\nSIA,30,43,400,43,29,142,1715582657\n";
 
-  reports.value.clientReport = parseCSV(clientCSV);
-  reports.value.exchangeReport = parseCSV(exchangeCSV);
-  reports.value.instrumentReport = parseCSV(instrumentCSV);
+  fetch('http://localhost:5000/report')
+    .then(response => response.json())
+    .then(data => {
+      console.log(data);
+      Object.keys(data).forEach(reportType => {
+        const reportKey = `${reportType}`;
+        if (reports.value.hasOwnProperty(reportKey)) {
+          reports.value[reportKey] = parseCSV(data[reportType]);
+        }
+      });
+    })
+    .catch(error => console.error('Error fetching reports:', error));
+
+
+  // const clientCSV = "client_id,order_id,reason\n1,1,invalid policy\n";
+  // const exchangeCSV = "order_id,reason\n1,invalid policy\n";
+  // const instrumentCSV = "instrument_id,open_price,closed_price,total_traded_vol,day_high,day_low,vwap,timestamp\nSIA,30,43,400,43,29,142,1715582657\n";
+
+  // reports.value.clientReport = parseCSV(clientCSV);
+  // reports.value.exchangeReport = parseCSV(exchangeCSV);
+  // reports.value.instrumentReport = parseCSV(instrumentCSV);
 };
 
-fetchReport();
+// fetchReport();
 </script>
 
 <style scoped>
