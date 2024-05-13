@@ -207,6 +207,13 @@ def add_order():
     return jsonify({"message": "Order received", "order_data": order_data}), 201
 
 
+@app.route("/exchange_report", methods=["GET"])
+def get_exchange_report():
+    # sample: need to call store_failed_orders each time a policy check fails
+    # store_failed_orders("A1", "instrument")
+    return generate_xchange_report()
+
+
 # Matching Policies failed? storing in redis exchange_report hash with order id as key
 def store_failed_orders(order_id, reason):
     redis_client_xchange_report.hset("exchange_report", order_id, reason)
@@ -221,6 +228,7 @@ def generate_xchange_report():
     )
     # Convert DataFrame to CSV format for display
     exchange_report_csv = report_df.to_csv(index=False)
+    print(exchange_report_csv)
     return jsonify({"exchange_report": exchange_report_csv}), 200
 
 
