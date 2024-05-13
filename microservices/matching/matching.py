@@ -41,6 +41,7 @@ rabbitmq_channel.queue_bind(
 # mega list, sorted by PRICE, THEN by RATING
 seller_queue = []
 buyer_queue = []
+error_queue = []
 
 
 # validation checks
@@ -72,8 +73,10 @@ def validate_instrument(
     instrument_id, instrument_curr, client_curr, quantity, lot_size
 ):
     if instrument_curr not in client_curr:
+        did_not_pass("currency")
         return False
     if quantity % lot_size != 0:
+        did_not_pass("lot_size")
         return False
     return True
 
@@ -83,40 +86,38 @@ def validate_instrument(
 
 
 def validate_client(client_id, position_check):
-    if position_check == "Y" or "y":
-        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+    if position_check == 'Y' or 'y':
+        #pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+        did_not_pass("position")
         return False
     return True
 
+def pull_from_redis(key_id):
+    items = r.hgetall(key_id)
+    
 
-# for creating and queueing mega list
+#for creating and queueing mega list
+# # get ALL data from redis
+# # order_id = redis_client.keys()
+# # data = redis_client.values()
+# # order_value = json.loads(data)
+# def queue_client(order_id, order_value):
+        
+#     # seller or buyer    
+#     if order_value['Side'] == 'Sell':
 
+#     elif order_value['Side'] == 'Buy':
 
-# get ALL data from redis
-# order_id = redis_client.keys()
-# data = redis_client.values()
-# order_value = json.loads(data)
-def queue_client(order_id, order_value):
+        
+# # matching engine
+# # seller_order = seller_list[0]
+# # buyer_order = buyer_list[0]
+# # NEEDA HAVE PORTION WHERE IT CHECKS MARKET-MARKET by INDEXING [-1]
 
-    # seller or buyer
-    if order_value["Side"] == "Sell":
-        pass
-    elif order_value["Side"] == "Buy":
-        pass
-
-
-# matching engine
-# seller_order = seller_list[0]
-# buyer_order = buyer_list[0]
-# NEEDA HAVE PORTION WHERE IT CHECKS MARKET-MARKET by INDEXING [-1]
-
-
-def match_order(seller_order, buyer_order):
-    # market is highest prio
-    # calculates quantity
-    # updates redis
-    pass
-
+# def match_order(seller_order, buyer_order):
+#     #market is highest prio
+#     #calculates quantity
+#     #updates redis
 
 @app.route("/", methods=["GET"])
 def index():
@@ -214,6 +215,18 @@ def instrument_update():
     item = request.json["item"]
     value = request.json["value"]
     return update_instrument_track(instrument, item, value)
+# "check" defines which kind of policy it is
+# Call this function if the any matching policies fail
+def did_not_pass(check):
+    if check == "currency":
+        error_queue.append("REJECTED - MISMATCH CURRENCY")
+        return jsonify({"message": "REJECTED - MISMATCH CURRENCY"}), 400
+    elif check == "lot_size":
+        error_queue.append("REJECTED - INVALID LOT SIZE")
+        return jsonify({"message": "REJECTED - INVALID LOT SIZE"}), 400
+    elif check == "position":
+        error_queue.append("REJECTED - POSITION CHECK FAILED")
+        return jsonify({"message": "REJECTED - POSITION CHECK FAILED"}), 400
 
 
 def init_instrument_track():
