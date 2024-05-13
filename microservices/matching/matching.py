@@ -144,7 +144,7 @@ def store_failed_orders(order_id, reason):
 
 # Updating client position into redis directly, so it can be taken out later on for report...
 def update_client_position(client_id, instrument_id, quantity):
-    redis_client_client.hset(client_id, instrument_id, quantity)
+    redis_client_client_report.hset(client_id, instrument_id, quantity)
 
 
 ##### REPORT #####
@@ -162,7 +162,23 @@ def generate_xchange_report():
 
 def generate_client_report():
     client_ids = redis_client_client_report.keys()
-    client_report = pd.DataFrame(client_ids, columns=["Client ID", "Instrument ID", "Net Position"])
+    print(client_ids)
+
+    client_positions = []
+    for client_id in client_ids:
+        client_data = redis_client_client_report.hgetall(client_id)
+        for instrument_id, quantity in client_data.items():
+            client_positions.append(
+                [
+                    client_id.decode("utf-8"),
+                    instrument_id.decode("utf-8"),
+                    int(quantity),
+                ]
+            )
+
+    client_report = pd.DataFrame(
+        client_positions, columns=["Client ID", "Instrument ID", "Net Position"]
+    )
     client_report_csv = client_report.to_csv(index=False)
     print(client_report_csv)
     # this client report consits a position of each client at the end of the trading day for each instrument.
