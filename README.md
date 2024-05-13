@@ -8,6 +8,9 @@ Special Pancake is a simple order match-engine algorithm utilising HEAP queues t
 - BACKEND: Run the corresponding services respectively: ie: `python3 matching.py`, or `python3 reports.py` alternatively, use docker-compose to spin up all the services.
 - FRONTEND: Run the following command to start the development server: `npm run dev` in `/frontend-act`
 
+## Algorithm Design:
+![Special Pancake](Special%20Pancake.jpg)
+
 
 ## Extra ideas/Considerations
 - Making use of RabbitMQ to handle message queuing and pub/sub pattern for real-time data exchange.
