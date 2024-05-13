@@ -23,13 +23,22 @@ def get_orders():
     # 9:02:00,B1,SIA,4500,B,32.1,Sell
     # 9:05:00,C1,SIA,100,C,32,Buy
     # Check if the file exists
-    try:
-        orders_df = pd.read_csv("input_orders.csv")
-    except FileNotFoundError:
-        return jsonify({"error": "File not found"}), 404
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        orders_df = pd.read_csv(file)
 
-    # Convert DataFrame to HTML
     orders_html = orders_df.to_html()
+
+    # Store all the orders as key value in redis order, then an array of their attributes
+    for index, row in orders_df.iterrows():
+        order_id = row["OrderID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client.hset(order_id, key, value)
 
     # Return HTML string
     return orders_html, 200
