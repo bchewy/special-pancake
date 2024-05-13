@@ -97,5 +97,48 @@ def update_client_report():
     return "ok", 200
 
 
+# UPDATE INSTRUMENT REPORT
+@app.route("/update_instrument_report", methods=["POST"])
+def update_instrument_report():
+    # body: {instrument_report: {instrument_id, openprice, closed price, total traded vol, day high, day low, vwap}    }
+    instrument_id = request.json.get("instrument_id")
+    open_price = request.json.get("openprice")
+    closed_price = request.json.get("closed_price")
+    total_traded_vol = request.json.get("total_traded_vol")
+    day_high = request.json.get("day_high")
+    day_low = request.json.get("day_low")
+    vwap = request.json.get("vwap")
+    timestamp = request.json.get("timestamp")
+
+    instrument_report_dict = {
+        "instrument_id": instrument_id,
+        "open_price": open_price,
+        "closed_price": closed_price,
+        "total_traded_vol": total_traded_vol,
+        "day_high": day_high,
+        "day_low": day_low,
+        "vwap": vwap,
+        "timestamp": timestamp,
+    }
+
+    found = False
+    for report in REPORTS:
+        if "instrument_report" in report:
+            for existing_report in report["instrument_report"]:
+                if existing_report["instrument_id"] == instrument_id:
+                    existing_report.update(instrument_report_dict)
+                    found = True
+                    break
+            if not found:
+                report["instrument_report"].append(instrument_report_dict)
+                found = True
+            break
+    if not found:
+        REPORTS.append({"instrument_report": [instrument_report_dict]})
+    print(REPORTS)
+
+    return "ok", 200
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
