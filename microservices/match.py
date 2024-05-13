@@ -165,12 +165,12 @@ def init_instruments():
         instrument_id = row["InstrumentID"]
         attributes = row.to_dict()
         # Safely add additional attributes with default values if they are missing
-        attributes['OpenPrice'] = row.get("OpenPrice", None)
-        attributes['ClosedPrice'] = row.get("ClosedPrice", None)
-        attributes['TotalTradedVol'] = row.get("TotalTradedVol", None)
-        attributes['DayHigh'] = row.get("DayHigh", None)
-        attributes['DayLow'] = row.get("DayLow", None)
-        attributes['VWAP'] = row.get("VWAP", None)
+        attributes["OpenPrice"] = row.get("OpenPrice", None)
+        attributes["ClosedPrice"] = row.get("ClosedPrice", None)
+        attributes["TotalTradedVol"] = row.get("TotalTradedVol", None)
+        attributes["DayHigh"] = row.get("DayHigh", None)
+        attributes["DayLow"] = row.get("DayLow", None)
+        attributes["VWAP"] = row.get("VWAP", None)
         INSTRUMENTS.append({instrument_id: attributes})
 
     return INSTRUMENTS, 200
@@ -180,19 +180,34 @@ def init_instruments():
 def get_report():
     exchange_report = "exchange_report"  # PUSH FAILED MATCHED POLICIES INTO EXCHANGE
     client_report = "client_report"  # PUSH ALL CLIENTS EOD REPORT INTO CLIENT
-    instrument_report = (
-        "instrument_report"  # PUSH ALL INSTRUMENTS EOD REPORT INTO INSTRUMENT
-    )
+
+    instrument_report_final = []
+    for instrument in INSTRUMENTS:
+        instrument_id = list(instrument.keys())[
+            0
+        ]  # Convert dict_keys to list and access the first element
+        instrument_data = instrument[instrument_id]
+        instrument_report = {
+            "instrument_id": instrument_id,
+            "open_price": instrument_data.get("OpenPrice"),
+            "closed_price": instrument_data.get("ClosedPrice"),
+            "total_traded_vol": instrument_data.get("TotalTradedVol"),
+            "day_high": instrument_data.get("DayHigh"),
+            "day_low": instrument_data.get("DayLow"),
+            "vwap": instrument_data.get("VWAP"),
+        }
+        instrument_report_final.append(instrument_report)
+
     REPORTS.append({"exchange_report": exchange_report})
     REPORTS.append({"client_report": client_report})
-    REPORTS.append({"instrument_report": instrument_report})
+    REPORTS.append({"instrument_report": instrument_report_final})
     return REPORTS, 200
 
 
 # helper function for instrument report
 def generate_instrument_report():
-    # for each instrument, i need to retrieve highest
-    pass
+
+    return instrument_report
 
 
 if __name__ == "__main__":
