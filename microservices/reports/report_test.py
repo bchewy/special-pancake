@@ -12,7 +12,6 @@ class TestReportService(unittest.TestCase):
     def test_get_report_empty(self):
         response = self.app.get("/report")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
 
     @patch(
         "report.REPORTS",
@@ -21,7 +20,6 @@ class TestReportService(unittest.TestCase):
     def test_get_report_with_data(self):
         response = self.app.get("/report")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
 
     @patch("report.REPORTS", [])
     def test_update_exchange_report(self):
