@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from report import app
+from matching import app
 
 
 class TestReportService(unittest.TestCase):
@@ -8,80 +8,50 @@ class TestReportService(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
 
-    @patch("report.REPORTS", [])
-    def test_get_report_empty(self):
-        response = self.app.get("/report")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
+        @patch("matching.OrderBook")
+        def test_add_order(self, mock_order_book):
+            order_book_instance = mock_order_book.return_value
 
-    @patch(
-        "report.REPORTS",
-        [{"exchange_report": [{"order_id": 1, "reason": "insufficient_balance"}]}],
-    )
-    def test_get_report_with_data(self):
-        response = self.app.get("/report")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
+            order_type = "Buy"
+            price = 300
+            client_rating = 90
+            quantity = 50
+            client_id = "client2"
+            arrival_time = "09:00:01"
 
-    @patch("report.REPORTS", [])
-    def test_update_exchange_report(self):
-        response = self.app.post(
-            "/update_exchange_report",
-            json={"order_id": 1, "reason": "insufficient_balance"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual("ok", response.data.decode())
+            self.app.add_order(
+                order_type, price, client_rating, quantity, client_id, arrival_time
+            )
+            order_book_instance.add_order.assert_called_with(
+                order_type, price, client_rating, quantity, client_id, arrival_time
+            )
 
-    @patch("report.REPORTS", [])
-    def test_update_client_report(self):
-        response = self.app.post(
-            "/update_client_report",
-            json={"client_id": 1, "order_id": 1, "reason": "invalid policy"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual("ok", response.data.decode())
+        @patch("matching.OrderBook")
+        def test_match_order(self, mock_order_book):
+            order_book_instance = mock_order_book.return_value
+            self.app.match_order()
 
-    @patch("report.REPORTS", [])
-    def test_update_instrument_report(self):
-        response = self.app.post(
-            "/update_instrument_report",
-            json={
-                "instrument_id": "SIA",
-                "openprice": 30,
-                "closed_price": 43,
-                "total_traded_vol": 400,
-                "day_high": 43,
-                "day_low": 29,
-                "vwap": 142,
-                "timestamp": 1715582657,
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual("ok", response.data.decode())
+            order_book_instance.match_order.assert_called_once()
 
-    @patch("report.REPORTS", [])
-    def test_update_client_report_with_invalid_policy(self):
-        response = self.app.post(
-            "/update_client_report",
-            json={"client_id": 2, "order_id": 20, "reason": "invalid policy"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual("ok", response.data.decode())
+        @patch("matching.OrderBook")
+        def test_order_flow(self, mock_order_book):
+            order_book_instance = mock_order_book.return_value
 
-    @patch("report.REPORTS", [])
-    def test_update_instrument_report_with_invalid_data(self):
-        response = self.app.post(
-            "/update_instrument_report",
-            json={
-                "instrument_id": "INST_010",
-                "openprice": 50,
-                "closed_price": 60,
-                "total_traded_vol": 500,
-                "day_high": 60,
-                "day_low": 49,
-                "vwap": 155,
-                "timestamp": 1715582658,
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual("ok", response.data.decode())
+            orders = [
+                ("Buy", "Market", 95, 100, "client1", "09:00:01"),
+                ("Buy", 300, 90, 50, "client2", "09:02:00"),
+                ("Sell", 305, 85, 30, "client3", "09:05:00"),
+                ("Sell", "Market", 92, 70, "client4", "09:10:00"),
+            ]
+
+            for order in orders:
+                self.app.add_order(*order)
+
+            self.app.match_order()
+
+            expected_calls = [mock.call(*order) for order in orders]
+            order_book_instance.add_order.assert_has_calls(
+                expected_calls, any_order=True
+            )
+
+            order_book_instance.match_order.assert_called_once()

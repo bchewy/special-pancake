@@ -1,11 +1,5 @@
 from flask import Flask, request, jsonify
-from redis import Redis
-import json
-import heapq
 import pandas as pd
-from flask import send_file
-import pika
-import json
 from flask_cors import CORS
 
 
