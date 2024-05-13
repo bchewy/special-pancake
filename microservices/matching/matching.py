@@ -159,11 +159,13 @@ def generate_xchange_report():
 
 
 def generate_client_report():
-    client_report = redis_client_client_report.hgetall("client_report")
-
+    client_ids = redis_client_client_report.keys()
+    client_report = pd.DataFrame(client_ids, columns=["Client ID"])
+    client_report_csv = client_report.to_csv(index=False)
+    print(client_report_csv)
     # this client report consits a position of each client at the end of the trading day for each instrument.
 
-    return jsonify({"message": "client report"}), 200
+    return jsonify({"client_report": client_report_csv}), 200
 
 
 if __name__ == "__main__":
