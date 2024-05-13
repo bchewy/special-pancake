@@ -51,29 +51,50 @@ def get_report():
 # UPDATE EXCHANGE REPORT:
 @app.route("/update_exchange_report", methods=["POST"])
 def update_exchange_report():
-
     # body: {exchange_report: [{order_id: 1, reason: "insufficient_balance"}]}
+    order_id = request.json["order_id"]
+    reason = request.json["reason"]
 
-    
+    exchange_report_dict = {"order_id": order_id, "reason": reason}
 
-    # Load the exchange report CSV to simulate fetching failed transactions
-    exchange_report_df = pd.read_csv("output_exchange_report.csv")
-
-    # Convert DataFrame to dictionary for easier manipulation
-    exchange_report_dict = exchange_report_df.to_dict(orient="records")
-
-    # Update the global REPORTS list with the new exchange report data
+    found = False
     for report in REPORTS:
         if "exchange_report" in report:
-            report["exchange_report"] = exchange_report_dict
+            report["exchange_report"].append(exchange_report_dict)
+            found = True
             break
-    else:
-        # If exchange_report key is not found, add it
-        REPORTS.append({"exchange_report": exchange_report_dict})
+    if not found:
+        REPORTS.append({"exchange_report": [exchange_report_dict]})
+    print(REPORTS)
+
+    return "ok", 200
 
 
-# Call the function to update the exchange report
-update_exchange_report()
+# UPDATE CLIENT REPORT
+@app.route("/update_client_report", methods=["POST"])
+def update_client_report():
+    # body: {client_report: {client_id: 1, order_id: 1, reason: "insufficient_balance"}]}
+    client_id = request.json["client_id"]
+    order_id = request.json["order_id"]
+    reason = request.json["reason"]
+
+    client_report_dict = {
+        "client_id": client_id,
+        "order_id": order_id,
+        "reason": reason,
+    }
+
+    found = False
+    for report in REPORTS:
+        if "client_report" in report:
+            report["client_report"].append(client_report_dict)
+            found = True
+            break
+    if not found:
+        REPORTS.append({"client_report": [client_report_dict]})
+    print(REPORTS)
+
+    return "ok", 200
 
 
 if __name__ == "__main__":
