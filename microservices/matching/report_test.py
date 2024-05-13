@@ -59,6 +59,33 @@ class TestReportService(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual("ok", response.data.decode())
 
+    @patch("report.REPORTS", [])
+    def test_update_client_report_with_invalid_policy(self):
+        response = self.app.post(
+            "/update_client_report",
+            json={"client_id": 2, "order_id": 20, "reason": "invalid policy"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual("ok", response.data.decode())
+
+    @patch("report.REPORTS", [])
+    def test_update_instrument_report_with_invalid_data(self):
+        response = self.app.post(
+            "/update_instrument_report",
+            json={
+                "instrument_id": "INST_010",
+                "openprice": 50,
+                "closed_price": 60,
+                "total_traded_vol": 500,
+                "day_high": 60,
+                "day_low": 49,
+                "vwap": 155,
+                "timestamp": 1715582658,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual("ok", response.data.decode())
+
 
 if __name__ == "__main__":
     unittest.main()
