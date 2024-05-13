@@ -47,9 +47,6 @@ rabbitmq_channel.queue_bind(
     exchange="order_exchange", queue="log_queue", routing_key="order.log"
 )
 
-# mega list, sorted by PRICE, THEN by RATING
-seller_queue = []
-buyer_queue = []
 error_queue = []
 INSTRUMENT_TRACK = {}
 
@@ -62,18 +59,27 @@ class OrderBook:
     def add_order(
         self, order_type, price, client_rating, quantity, client_id, arrival_time
     ):
-        market_priority = 0 if price == "Market" else 1
-        actual_price = (
-            float("inf")
-            if price == "Market" and order_type == "Buy"
-            else float("-inf") if price == "Market" and order_type == "Sell" else price
-        )
+        market_priority = 0 
+        if price == "Market":
+            market_priority = 0
+        else:
+            market_priority = 1
+            
+        if price == "Market" and order_type == "Buy":
+            actual_price = float("inf")
+        elif price == "Market" and order_type == "Sell":
+            actual_price = float("-inf")
+        else:
+            actual_price = price
 
         # this is built according to the heapq compulsory comparison of tuples element-wise
         # first it will sort by market priority because MARKET == 0, then by price, then by client rating, where
+        if order_type == "Buy":
+            actual_price = float(actual_price)
+            actual_price = -actual_price
         order = (
             market_priority,
-            -actual_price if order_type == "Buy" else actual_price,
+            actual_price,
             client_rating,
             arrival_time,
             client_id,
@@ -138,34 +144,35 @@ class OrderBook:
                 heapq.heappush(self.sell_heap, sell_order)
                 break  # Exit matching if top orders can't match
 
-    # edit this functions according to the problem statement
-    # def print_book(self):
-    #     print("Buy Orders:")
-    #     for order in sorted(self.buy_heap, reverse=True):  # Min-heap, so reverse to show max at top
-    #         print(order)
-    #     print("Sell Orders:")
-    #     for order in sorted(self.sell_heap):
-    #         print(order)
+# "check" defines which kind of policy it is
+# Call this function if the any matching policies fail
+def did_not_pass(check):
+    if check == "currency":
+        error_queue.append("REJECTED - MISMATCH CURRENCY")
+    elif check == "lot_size":
+        error_queue.append("REJECTED - INVALID LOT SIZE")
+    elif check == "position":
+        error_queue.append("REJECTED - POSITION CHECK FAILED")
 
-
-# Example usage
 book = OrderBook()
-# init_orders()
-# init_instruments()
-# init_clients()
+
+def validate_instrument(instrument_curr, client_curr, quantity, lot_size):
+    if instrument_curr not in client_curr:
+        did_not_pass("currency")
+        return False
+    if quantity % lot_size != 0:
+        did_not_pass("lot_size")
+        return False
+    return True
 
 
-print(ORDERS)
-print(CLIENTS)
-print(INSTRUMENTS)
-
-# book.add_order("buy", "Market", 95, 100, "client1")
-# book.add_order("buy", 300, 90, 50, "client2")
-# book.add_order("sell", 305, 85, 30, "client3")
-# book.add_order("sell", "Market", 92, 70, "client4")
-
-# book.match_order()  # Perform matching
-# book.print_book()  # Print remaining orders in the book
+def validate_client(client_id, position_check):
+    if position_check == "Y" or "y":
+        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+        # if pull_from_redis(client_id) == 0:
+        did_not_pass("position")
+        return False
+    return True
 
 
 # validation checks
@@ -182,9 +189,7 @@ def validate_order(
     #     return False
     # if client_id not in redis_client_client.keys():
     #     return False
-    if not validate_instrument(
-        instrument_id, instrument_curr, client_curr, quantity, lot_size
-    ):
+    if not validate_instrument(instrument_curr, client_curr, quantity, lot_size):
         # log error and reason
         return False
     if not validate_client(client_id, position_check):
@@ -192,15 +197,9 @@ def validate_order(
         return False
     return True
 
-# Example usage 
-book = OrderBook() 
-# init_orders()
-# init_instruments()
-# init_clients()
-
 
 # print(ORDERS)
-print(CLIENTS)
+# print(CLIENTS)
 # print(INSTRUMENTS)
 
 open_period = False
@@ -230,19 +229,15 @@ for order in ORDERS:
     position_check = ""
     
     for json_obj in INSTRUMENTS:
-        for key, value in json_obj.items():
-            if key == "Instrument":
-                if order.get("Instrument") == value:
-                    instrument_curr = json_obj.get("Currency")
-                    lot_size = json_obj.get("LotSize")
-                    break
+        if json_obj.get("InstrumentID") == order.get("Instrument"):
+            instrument_curr = json_obj.get("Currency")
+            lot_size = json_obj.get("LotSize")
+            break
     for json_obj in CLIENTS:
-        for key, value in json_obj.items():
-            if key == "Client":
-                if order.get("Client") == value:
-                    client_curr = json_obj.get("Currencies")
-                    position_check = json_obj.get("PositionCheck")
-                    break
+        if json_obj.get("ClientID") == order.get("Client"):
+            client_curr = json_obj.get("Currencies")
+            position_check = json_obj.get("PositionCheck")
+            break
     validate_order(order.get("Client"), order.get("Instrument"), instrument_curr, client_curr, order.get("Quantity"),lot_size, position_check)
     
     if open_period:
@@ -279,14 +274,6 @@ for order in ORDERS:
 
 
 
-
-def validate_client(client_id, position_check):
-    if position_check == "Y" or "y":
-        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
-        # if pull_from_redis(client_id) == 0:
-        did_not_pass("position")
-        return False
-    return True
 
 
 # for creating and queueing mega list
@@ -399,18 +386,7 @@ def validate_client(client_id, position_check):
 # #### INSTRUMENTS ###################################################################
 
 
-# # "check" defines which kind of policy it is
-# # Call this function if the any matching policies fail
-def did_not_pass(check):
-    if check == "currency":
-        error_queue.append("REJECTED - MISMATCH CURRENCY")
-        return jsonify({"message": "REJECTED - MISMATCH CURRENCY"}), 400
-    elif check == "lot_size":
-        error_queue.append("REJECTED - INVALID LOT SIZE")
-        return jsonify({"message": "REJECTED - INVALID LOT SIZE"}), 400
-    elif check == "position":
-        error_queue.append("REJECTED - POSITION CHECK FAILED")
-        return jsonify({"message": "REJECTED - POSITION CHECK FAILED"}), 400
+
 
 
 # ##### REPORT ###############################################################
