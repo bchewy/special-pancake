@@ -2,11 +2,33 @@ from flask import Flask, request, jsonify
 from redis import Redis
 import pandas as pd
 from flask import send_file
+import pika
 
 app = Flask(__name__)
 
 # Initialize Redis client
 redis_client = Redis(host="localhost", port=6379, db=0)
+
+
+
+# Initialize RabbitMQ connection
+rabbitmq_credentials = pika.PlainCredentials("guest", "guest")
+rabbitmq_parameters = pika.ConnectionParameters(
+    "localhost", 5672, "/", rabbitmq_credentials
+)
+rabbitmq_connection = pika.BlockingConnection(rabbitmq_parameters)
+rabbitmq_channel = rabbitmq_connection.channel()
+
+rabbitmq_channel.exchange_declare(exchange="order_exchange", exchange_type="direct")
+
+rabbitmq_channel.queue_declare(queue="order_queue")
+rabbitmq_channel.queue_declare(queue="log_queue")
+rabbitmq_channel.queue_bind(
+    exchange="order_exchange", queue="order_queue", routing_key="order.process"
+)
+rabbitmq_channel.queue_bind(
+    exchange="order_exchange", queue="log_queue", routing_key="order.log"
+)
 
 
 @app.route("/", methods=["GET"])
