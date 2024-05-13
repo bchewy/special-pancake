@@ -249,6 +249,35 @@ def init_instrument_track():
     return INSTRUMENT_TRACK, 200
 
 
+##### REPORT ###############################################################
+
+
+@app.route("/exchange_report", methods=["GET"])
+def get_exchange_report():
+    # sample: need to call store_failed_orders each time a policy check fails
+    # store_failed_orders("A1", "instrument")
+    return generate_xchange_report()
+
+
+@app.route("/client_report", methods=["GET"])
+def get_client_report():
+    # sample: need to call update client pos each time a trade is made
+    # update_client_position("A1", "SIA", 100)
+    return generate_client_report()
+
+
+#### HELPER FUNCTIONS FOR REPORTS #####
+# Matching Policies failed? storing in redis exchange_report hash with order id as key
+def store_failed_orders(order_id, reason):
+    redis_client_xchange_report.hset("exchange_report", order_id, reason)
+
+
+# Updating client position into redis directly, so it can be taken out later on for report...
+def update_client_position(client_id, instrument_id, quantity):
+    redis_client_client_report.hset(client_id, instrument_id, quantity)
+
+
+# Updating the instrument track, for each item and value
 def update_instrument_track(instrument, item, value):
     # instrument = decoded id from redis
     # item = the item to update eg: open price, closed price, tvol, day high, day low, vwap
@@ -268,34 +297,6 @@ def update_instrument_track(instrument, item, value):
             redis_client_instrument.hset(instrument, item, value)
     else:
         print(f"Error: Instrument {instrument} not found in INSTRUMENT_TRACK.")
-
-
-##### REPORT ###############################################################
-
-
-@app.route("/exchange_report", methods=["GET"])
-def get_exchange_report():
-    # sample: need to call store_failed_orders each time a policy check fails
-    # store_failed_orders("A1", "instrument")
-    return generate_xchange_report()
-
-
-@app.route("/client_report", methods=["GET"])
-def get_client_report():
-    # sample: need to call update client pos each time a trade is made
-    update_client_position("A1", "SIA", 100)
-    return generate_client_report()
-
-
-#### HELPER FUNCTIONS FOR REPORTS #####
-# Matching Policies failed? storing in redis exchange_report hash with order id as key
-def store_failed_orders(order_id, reason):
-    redis_client_xchange_report.hset("exchange_report", order_id, reason)
-
-
-# Updating client position into redis directly, so it can be taken out later on for report...
-def update_client_position(client_id, instrument_id, quantity):
-    redis_client_client_report.hset(client_id, instrument_id, quantity)
 
 
 # Calculate VWAP (Volume Weighted Average Price)
@@ -322,6 +323,7 @@ def calculate_vwap(instrument):
     else:
         print(f"No data found for instrument {instrument}.")
         return vwap, success
+
 
 ### REPORT GENERATION FUNCS
 def generate_xchange_report():
