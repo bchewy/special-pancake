@@ -6,9 +6,11 @@ import pandas as pd
 from flask import send_file
 import pika
 import json
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 ORDERS = []
 CLIENTS = []
 INSTRUMENTS = []
@@ -33,7 +35,13 @@ def get_report():
         df = pd.DataFrame(report[report_type])
         df.to_csv(f"{report_type}_report.csv", index=False)
         print(f"Exported {report_type} to CSV.")
-    return "Reports displayed and exported to CSV.", 200
+    csv_outputs = {}
+    for report in REPORTS:
+        report_type = list(report.keys())[0]
+        df = pd.DataFrame(report[report_type])
+        csv_string = df.to_csv(index=False)
+        csv_outputs[report_type] = csv_string
+    return jsonify(csv_outputs), 200
 
 
 # UPDATE EXCHANGE REPORT:
