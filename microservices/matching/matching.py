@@ -5,6 +5,7 @@ import heapq
 import pandas as pd
 from flask import send_file
 import pika
+import requests
 
 from datetime import datetime, time
 
@@ -57,7 +58,7 @@ class OrderBook:
         self.sell_heap = []
 
     def add_order(
-        self, order_type, price, client_rating, quantity, client_id, arrival_time
+        self, order_type, price, client_rating, quantity, client_id, arrival_time, order_id
     ):
         market_priority = 0 
         if price == "Market":
@@ -84,6 +85,7 @@ class OrderBook:
             arrival_time,
             client_id,
             quantity,
+            order_id
         )
 
         if order_type == "Buy":
@@ -146,50 +148,55 @@ class OrderBook:
 
 # "check" defines which kind of policy it is
 # Call this function if the any matching policies fail
-def did_not_pass(check):
+
+endpoint_url = f"http://localhost:5000/update_exchange_report" 
+def did_not_pass(check, order_id):
     if check == "currency":
+        requests.post(endpoint_url, json={"order_id": order_id, "reason": "REJECTED - MISMATCH CURRENCY"})  
         error_queue.append("REJECTED - MISMATCH CURRENCY")
     elif check == "lot_size":
+        requests.post(endpoint_url, json={"order_id": order_id, "reason": "REJECTED - INVALID LOT SIZE"})  
         error_queue.append("REJECTED - INVALID LOT SIZE")
     elif check == "position":
+        requests.post(endpoint_url, json={"order_id": order_id, "reason": "REJECTED - POSITION CHECK FAILED"})  
         error_queue.append("REJECTED - POSITION CHECK FAILED")
 
 
 
-def validate_instrument(instrument_curr, client_curr, quantity, lot_size):
+def validate_instrument(instrument_curr, client_curr, quantity, lot_size, order_id):
     if instrument_curr not in client_curr:
-        did_not_pass("currency")
+        did_not_pass("currency", order_id)
         return False
     if quantity % lot_size != 0:
-        did_not_pass("lot_size")
+        did_not_pass("lot_size", order_id)
         return False
     return True
 
 
 def validate_client(client_id, position_check):
+    # Check if sufficient balance
     if position_check == "Y" or "y":
-        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
-        # if pull_from_redis(client_id) == 0:
-        did_not_pass("position")
-        return False
+        # Check if client has sufficient balance
+        pass
+        
     return True
 
 
 # validation checks
 def validate_order(
     client_id,
-    instrument_id,
     instrument_curr,
     client_curr,
     quantity,
     lot_size,
     position_check,
+    order_id
 ):
     # if instrument_id not in redis_client_instrument.keys():
     #     return False
     # if client_id not in redis_client_client.keys():
     #     return False
-    if not validate_instrument(instrument_curr, client_curr, quantity, lot_size):
+    if not validate_instrument(instrument_curr, client_curr, quantity, lot_size,order_id):
         # log error and reason
         return False
     if not validate_client(client_id, position_check):
@@ -240,7 +247,7 @@ for order in ORDERS:
             client_curr = json_obj.get("Currencies")
             position_check = json_obj.get("PositionCheck")
             break
-    validate_order(order.get("Client"), order.get("Instrument"), instrument_curr, client_curr, order.get("Quantity"),lot_size, position_check)
+    validate_order(order.get("Client"), instrument_curr, client_curr, order.get("Quantity"),lot_size, position_check, order.get("OrderID"))
     
     if open_period:
         if data_time >= open_time:
@@ -248,14 +255,14 @@ for order in ORDERS:
             continuous_period = True
             book.match_order()
     
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"))
+        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
     
     elif continuous_period:
         if data_time >= continuous_time:
             continuous_period = False
             closed_period = True
     
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"))
+        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
         book.match_order()
     elif closed_period:
         if data_time >= open_time:
@@ -263,7 +270,7 @@ for order in ORDERS:
             continuous_period = True
             book.match_order()
             
-        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"))
+        book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"), order.get("OrderID"))
             
 print(book.buy_heap)
 print(book.sell_heap)
