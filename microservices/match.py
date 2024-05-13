@@ -7,42 +7,14 @@ from flask import send_file
 import pika
 
 app = Flask(__name__)
-
-# Initialize Redis client
-redis_client_orders = Redis(host="localhost", port=6379, db=0)
-redis_client_client = Redis(host="localhost", port=6379, db=1)
-redis_client_instrument = Redis(host="localhost", port=6379, db=2)
-
-# Reports
-redis_client_xchange_report = Redis(host="localhost", port=6379, db=3)
-redis_client_client_report = Redis(host="localhost", port=6379, db=4)
-redis_client_instrument_report = Redis(host="localhost", port=6379, db=5)
-
-
-# Initialize RabbitMQ connection
-rabbitmq_credentials = pika.PlainCredentials("guest", "guest")
-rabbitmq_parameters = pika.ConnectionParameters(
-    "localhost", 5672, "/", rabbitmq_credentials
-)
-rabbitmq_connection = pika.BlockingConnection(rabbitmq_parameters)
-rabbitmq_channel = rabbitmq_connection.channel()
-
-rabbitmq_channel.exchange_declare(exchange="order_exchange", exchange_type="direct")
-
-rabbitmq_channel.queue_declare(queue="order_queue")
-rabbitmq_channel.queue_declare(queue="log_queue")
-rabbitmq_channel.queue_bind(
-    exchange="order_exchange", queue="order_queue", routing_key="order.process"
-)
-rabbitmq_channel.queue_bind(
-    exchange="order_exchange", queue="log_queue", routing_key="order.log"
-)
-
 # mega list, sorted by PRICE, THEN by RATING
 seller_queue = []
 buyer_queue = []
 error_queue = []
-INSTRUMENT_TRACK = {}
+
+ORDERS = []
+CLIENTS = []
+INSTRUMENTS = []
 
 
 # validation checks
@@ -94,10 +66,6 @@ def validate_client(client_id, position_check):
     return True
 
 
-def pull_from_redis(key_id):
-    items = r.hgetall(key_id)
-
-
 # for creating and queueing mega list
 # # get ALL data from redis
 # # order_id = redis_client.keys()
@@ -120,11 +88,6 @@ def pull_from_redis(key_id):
 #     #market is highest prio
 #     #calculates quantity
 #     #updates redis
-
-
-@app.route("/", methods=["GET"])
-def index():
-    return jsonify({"message": "healthy"}), 200
 
 
 ### Initialize endpoints ##################################################################
@@ -153,10 +116,11 @@ def init_orders():
         order_id = row["OrderID"]
         attributes = row.to_dict()
         for key, value in attributes.items():
-            redis_client_orders.hset(order_id, key, value)
+            ORDERS.append({order_id: attributes})
 
     # Return HTML string
-    return orders_html, 200
+    print("completing")
+    return ORDERS, 200
 
 
 # INIT CLIENTS
@@ -177,9 +141,9 @@ def init_clients():
         client_id = row["ClientID"]
         attributes = row.to_dict()
         for key, value in attributes.items():
-            redis_client_client.hset(client_id, key, value)
+            CLIENTS.append({client_id: attributes})
 
-    return clients_html, 200
+    return CLIENTS, 200
 
 
 # INIT INSTRUMENTS
@@ -200,9 +164,9 @@ def init_instruments():
         instrument_id = row["InstrumentID"]
         attributes = row.to_dict()
         for key, value in attributes.items():
-            redis_client_instrument.hset(instrument_id, key, value)
+            INSTRUMENTS.append({instrument_id: attributes})
 
-    return instruments_html, 200
+    return INSTRUMENTS, 200
 
 
 #### INSTRUMENTS ###################################################################
