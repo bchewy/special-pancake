@@ -123,21 +123,8 @@ def index():
     return jsonify({"message": "healthy"}), 200
 
 
-@app.route("/exchange_report", methods=["GET"])
-def get_exchange_report():
-    # sample: need to call store_failed_orders each time a policy check fails
-    # store_failed_orders("A1", "instrument")
-    return generate_xchange_report()
-
-
-@app.route("/client_report", methods=["GET"])
-def get_client_report():
-    # sample: need to call update client pos each time a trade is made
-    update_client_position("A1", "SIA", 100)
-    return generate_client_report()
-
-
-### Initialize endpoints ###
+### Initialize endpoints ##################################################################
+# INIT ORDERS
 @app.route("/orders", methods=["POST"])
 def init_orders():
     # the post request contains a .csv attached, read it and display the output.
@@ -168,7 +155,7 @@ def init_orders():
     return orders_html, 200
 
 
-# initalize clients
+# INIT CLIENTS
 @app.route("/clients", methods=["POST"])
 def init_clients():
     if "file" not in request.files:
@@ -191,7 +178,7 @@ def init_clients():
     return clients_html, 200
 
 
-# iniitlaize instruments
+# INIT INSTRUMENTS
 @app.route("/instruments", methods=["POST"])
 def init_instruments():
     if "file" not in request.files:
@@ -214,7 +201,93 @@ def init_instruments():
     return instruments_html, 200
 
 
-#### UPDATES TO REDIS #####
+#### INSTRUMENTS ###################################################################
+@app.route("/instrument_trigger", methods=["POST"])
+def instrument_trigger():
+    print("Initializing instrument init; ")
+    return init_instrument_track()
+
+
+@app.route("/instrument_update", methods=["POST"])
+def instrument_update():
+    instrument = request.json["instrument"]
+    item = request.json["item"]
+    value = request.json["value"]
+    return update_instrument_track(instrument, item, value)
+
+
+def init_instrument_track():
+    global INSTRUMENT_TRACK
+    all_instrument_keys = redis_client_instrument.keys("*")
+
+    print(all_instrument_keys)
+    instrument_id = all_instrument_keys[0].decode("utf-8")
+    print(instrument_id)
+    instrument_data = redis_client_instrument.hgetall(instrument_id)
+    print(instrument_data)
+
+    INSTRUMENT_TRACK = {}
+    for instrument_id in all_instrument_keys:
+        instrument_id_decoded = instrument_id.decode("utf-8")
+        instrument_data = redis_client_instrument.hgetall(instrument_id_decoded)
+        instrument_details = {
+            key.decode("utf-8"): value.decode("utf-8")
+            for key, value in instrument_data.items()
+        }
+        print(instrument_details)
+
+    # if open price, closed price, totalvoltraded, day high, day low, vwap not in there - add them
+    INSTRUMENT_TRACK[instrument_id_decoded] = {
+        "OpenPrice": instrument_details.get("OpenPrice", 0),
+        "ClosedPrice": instrument_details.get("ClosedPrice", 0),
+        "TotalVolumeTraded": instrument_details.get("TotalVolumeTraded", 0),
+        "DayHigh": instrument_details.get("DayHigh", 0),
+        "DayLow": instrument_details.get("DayLow", 0),
+        "VWAP": instrument_details.get("VWAP", 0),
+    }
+    print(INSTRUMENT_TRACK)
+    return INSTRUMENT_TRACK, 200
+
+
+def update_instrument_track(instrument, item, value):
+    # instrument = decoded id from redis
+    # item = the item to update eg: open price, closed price, tvol, day high, day low, vwap
+    # value = the value to update to
+    validate = [
+        "OpenPrice",
+        "ClosedPrice",
+        "TotalVolumeTraded",
+        "DayHigh",
+        "DayLow",
+        "VWAP",
+    ]
+    global INSTRUMENT_TRACK
+    if instrument in INSTRUMENT_TRACK:
+        if item in validate:
+            INSTRUMENT_TRACK[instrument][item] = value
+            redis_client_instrument.hset(instrument, item, value)
+    else:
+        print(f"Error: Instrument {instrument} not found in INSTRUMENT_TRACK.")
+
+
+##### REPORT ###############################################################
+
+
+@app.route("/exchange_report", methods=["GET"])
+def get_exchange_report():
+    # sample: need to call store_failed_orders each time a policy check fails
+    # store_failed_orders("A1", "instrument")
+    return generate_xchange_report()
+
+
+@app.route("/client_report", methods=["GET"])
+def get_client_report():
+    # sample: need to call update client pos each time a trade is made
+    update_client_position("A1", "SIA", 100)
+    return generate_client_report()
+
+
+#### HELPER FUNCTIONS FOR REPORTS #####
 # Matching Policies failed? storing in redis exchange_report hash with order id as key
 def store_failed_orders(order_id, reason):
     redis_client_xchange_report.hset("exchange_report", order_id, reason)
@@ -225,7 +298,32 @@ def update_client_position(client_id, instrument_id, quantity):
     redis_client_client_report.hset(client_id, instrument_id, quantity)
 
 
-##### REPORT #####
+# Calculate VWAP (Volume Weighted Average Price)
+# VWAP = (Typical Price * Volume) / Total Volume
+def calculate_vwap(instrument):
+    success = False
+    vwap = 0
+    instrument_data = redis_client_instrument.hgetall(instrument)
+    if instrument_data:
+        day_high = float(instrument_data.get("DayHigh", 0))
+        day_low = float(instrument_data.get("DayLow", 0))
+        closed_price = float(instrument_data.get("ClosedPrice", 0))
+        total_volume_traded = float(instrument_data.get("TotalVolumeTraded", 0))
+
+        if total_volume_traded != 0:
+            typical_price = (day_high + day_low + closed_price) / 3
+            vwap = (typical_price * total_volume_traded) / total_volume_traded
+            redis_client_instrument.hset(instrument, "VWAP", vwap)
+            success = True
+            return vwap, success
+        else:
+            print("Total volume traded is 0!!, cannot calculate VWAP.")
+            return vwap, success
+    else:
+        print(f"No data found for instrument {instrument}.")
+        return vwap, success
+
+### REPORT GENERATION FUNCS
 def generate_xchange_report():
     exchange_report = redis_client_xchange_report.hgetall("exchange_report")
     # Convert the exchange report dictionary to a DataFrame for better CSV display
@@ -269,32 +367,6 @@ def generate_instrument_report():
     instrument_report_csv = instrument_report.to_csv(index=False)
     print(instrument_report_csv)
     return jsonify({"instrument_report": instrument_report_csv}), 200
-
-
-def calculate_vwap(instrument):
-    # Calculate VWAP (Volume Weighted Average Price)
-    # VWAP = (Typical Price * Volume) / Total Volume
-    success = False
-    vwap = 0
-    instrument_data = redis_client_instrument.hgetall(instrument)
-    if instrument_data:
-        day_high = float(instrument_data.get("DayHigh", 0))
-        day_low = float(instrument_data.get("DayLow", 0))
-        closed_price = float(instrument_data.get("ClosedPrice", 0))
-        total_volume_traded = float(instrument_data.get("TotalVolumeTraded", 0))
-
-        if total_volume_traded != 0:
-            typical_price = (day_high + day_low + closed_price) / 3
-            vwap = (typical_price * total_volume_traded) / total_volume_traded
-            redis_client_instrument.hset(instrument, "VWAP", vwap)
-            success = True
-            return vwap, success
-        else:
-            print("Total volume traded is 0!!, cannot calculate VWAP.")
-            return vwap, success
-    else:
-        print(f"No data found for instrument {instrument}.")
-        return vwap, success
 
 
 if __name__ == "__main__":
