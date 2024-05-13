@@ -33,25 +33,39 @@ rabbitmq_channel.queue_bind(
     exchange="order_exchange", queue="log_queue", routing_key="order.log"
 )
 
-#mega list, sorted by PRICE, THEN by RATING
+# mega list, sorted by PRICE, THEN by RATING
 seller_queue = []
 buyer_queue = []
 
-#validation checks
-def validate_order(client_id, instrument_id, instrument_curr, client_curr, quantity, lot_size, position_check):
+
+# validation checks
+def validate_order(
+    client_id,
+    instrument_id,
+    instrument_curr,
+    client_curr,
+    quantity,
+    lot_size,
+    position_check,
+):
     if instrument_id not in redis_client_instrument.keys():
         return False
     if client_id not in redis_client_client.keys():
         return False
-    if not validate_instrument(instrument_id, instrument_curr, client_curr, quantity, lot_size):
-        #log error and reason
+    if not validate_instrument(
+        instrument_id, instrument_curr, client_curr, quantity, lot_size
+    ):
+        # log error and reason
         return False
     if not validate_client(client_id, position_check):
-        #log error and reason
+        # log error and reason
         return False
     return True
-    
-def validate_instrument(instrument_id, instrument_curr, client_curr, quantity, lot_size):
+
+
+def validate_instrument(
+    instrument_id, instrument_curr, client_curr, quantity, lot_size
+):
     if instrument_curr not in client_curr:
         return False
     if quantity % lot_size != 0:
@@ -61,35 +75,43 @@ def validate_instrument(instrument_id, instrument_curr, client_curr, quantity, l
     # client_data = queue_list[0]
     # client_id = client_data['client_id']
     # client_position_check = client_data['position_check']
+
+
 def validate_client(client_id, position_check):
-    if position_check == 'Y' or 'y':
-        #pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+    if position_check == "Y" or "y":
+        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
         return False
     return True
 
-#for creating and queueing mega list
+
+# for creating and queueing mega list
+
 
 # get ALL data from redis
 # order_id = redis_client.keys()
 # data = redis_client.values()
 # order_value = json.loads(data)
 def queue_client(order_id, order_value):
-        
-    # seller or buyer    
-    if order_value['Side'] == 'Sell':
 
-    elif order_value['Side'] == 'Buy':
+    # seller or buyer
+    if order_value["Side"] == "Sell":
+        did_not_pass
+    elif order_value["Side"] == "Buy":
+        pass
 
-        
+
 # matching engine
 # seller_order = seller_list[0]
 # buyer_order = buyer_list[0]
 # NEEDA HAVE PORTION WHERE IT CHECKS MARKET-MARKET by INDEXING [-1]
 
+
 def match_order(seller_order, buyer_order):
-    #market is highest prio
-    #calculates quantity
-    #updates redis
+    # market is highest prio
+    # calculates quantity
+    # updates redis
+    pass
+
 
 @app.route("/", methods=["GET"])
 def index():
@@ -180,20 +202,11 @@ def add_order():
     return jsonify({"message": "Order received", "order_data": order_data}), 201
 
 
-# "check" defines which kind of policy it is
-# Call this function if the any matching policies fail
-def did_not_pass(check):
-    if check == "instrument":
-        return jsonify({"message": "Instrument policy failed"}), 400
-    elif check == "currency":
-        return jsonify({"message": "Currency check failed"}), 400
-    elif check == "lot_size":
-        return jsonify({"message": "Lot size check failed"}), 400
-    elif check == "position":
-        return jsonify({"message": "Position check failed"}), 400
+##### REPORT #####
+def generate_report():
+    pass
 
 
-# Init the example-set csv, creating the orders from input_orders.csv
 
 
 if __name__ == "__main__":
