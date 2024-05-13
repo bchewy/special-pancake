@@ -22,30 +22,18 @@ CLIENTS.extend(pd.read_csv("input_clients.csv").to_dict(orient="records"))
 
 @app.route("/report", methods=["GET"])
 def get_report():
-    exchange_report = "exchange_report"  # PUSH FAILED MATCHED POLICIES INTO EXCHANGE
-    client_report = "client_report"  # PUSH ALL CLIENTS EOD REPORT INTO CLIENT
+    # Display all reports
+    for report in REPORTS:
+        print("Report Type: ", list(report.keys())[0])
+        print("Details: ", report[list(report.keys())[0]])
 
-    instrument_report_final = []
-    for instrument in INSTRUMENTS:
-        instrument_id = list(instrument.keys())[
-            0
-        ]  # Convert dict_keys to list and access the first element
-        instrument_data = instrument[instrument_id]
-        instrument_report = {
-            "instrument_id": instrument_id,
-            "open_price": instrument_data.get("OpenPrice"),
-            "closed_price": instrument_data.get("ClosedPrice"),
-            "total_traded_vol": instrument_data.get("TotalTradedVol"),
-            "day_high": instrument_data.get("DayHigh"),
-            "day_low": instrument_data.get("DayLow"),
-            "vwap": instrument_data.get("VWAP"),
-        }
-        instrument_report_final.append(instrument_report)
-
-    REPORTS.append({"exchange_report": exchange_report})
-    REPORTS.append({"client_report": client_report})
-    REPORTS.append({"instrument_report": instrument_report_final})
-    return REPORTS, 200
+    # Export each type of report to a separate CSV file
+    for report in REPORTS:
+        report_type = list(report.keys())[0]
+        df = pd.DataFrame(report[report_type])
+        df.to_csv(f"{report_type}_report.csv", index=False)
+        print(f"Exported {report_type} to CSV.")
+    return "Reports displayed and exported to CSV.", 200
 
 
 # UPDATE EXCHANGE REPORT:
