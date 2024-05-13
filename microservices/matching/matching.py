@@ -8,7 +8,8 @@ app = Flask(__name__)
 
 # Initialize Redis client
 redis_client = Redis(host="localhost", port=6379, db=0)
-
+redis_client_client = Redis(host="localhost", port=6379, db=1)
+redis_client_instrument = Redis(host="localhost", port=6379, db=2)
 
 
 # Initialize RabbitMQ connection
@@ -36,8 +37,10 @@ def index():
     return jsonify({"message": "Order microservice is running"}), 200
 
 
+# initilaize orders
+# this /orders feeds the input_orders in.
 @app.route("/orders", methods=["POST"])
-def get_orders():
+def init_orders():
     # the post request contains a .csv attached, read it and display the output.
     # eg:
     # Time,OrderID,Instrument,Quantity,Client,Price,Side
@@ -64,6 +67,52 @@ def get_orders():
 
     # Return HTML string
     return orders_html, 200
+
+
+# initalize clients
+@app.route("/clients", methods=["POST"])
+def init_clients():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        clients_df = pd.read_csv(file)
+
+    clients_html = clients_df.to_html()
+
+    # store the clients in redis
+    for index, row in clients_df.iterrows():
+        client_id = row["ClientID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client_client.hset(client_id, key, value)
+
+    return clients_html, 200
+
+
+# iniitlaize instruments
+@app.route("/instruments", methods=["POST"])
+def init_instruments():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        instruments_df = pd.read_csv(file)
+
+    instruments_html = instruments_df.to_html()
+
+    # store the instruments in redis!
+    for index, row in instruments_df.iterrows():
+        instrument_id = row["InstrumentID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client_instrument.hset(instrument_id, key, value)
+
+    return instruments_html, 200
 
 
 @app.route("/order", methods=["POST"])
