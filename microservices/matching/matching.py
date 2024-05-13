@@ -137,6 +137,84 @@ def get_client_report():
     return generate_client_report()
 
 
+### Initialize endpoints ###
+@app.route("/orders", methods=["POST"])
+def init_orders():
+    # the post request contains a .csv attached, read it and display the output.
+    # eg:
+    # Time,OrderID,Instrument,Quantity,Client,Price,Side
+    # 9:00:01,A1,SIA,1500,A,Market,Buy
+    # 9:02:00,B1,SIA,4500,B,32.1,Sell
+    # 9:05:00,C1,SIA,100,C,32,Buy
+    # Check if the file exists
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        orders_df = pd.read_csv(file)
+
+    orders_html = orders_df.to_html()
+
+    # Store all the orders as key value in redis order, then an array of their attributes
+    for index, row in orders_df.iterrows():
+        order_id = row["OrderID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client_orders.hset(order_id, key, value)
+
+    # Return HTML string
+    return orders_html, 200
+
+
+# initalize clients
+@app.route("/clients", methods=["POST"])
+def init_clients():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        clients_df = pd.read_csv(file)
+
+    clients_html = clients_df.to_html()
+
+    # store the clients in redis
+    for index, row in clients_df.iterrows():
+        client_id = row["ClientID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client_client.hset(client_id, key, value)
+
+    return clients_html, 200
+
+
+# iniitlaize instruments
+@app.route("/instruments", methods=["POST"])
+def init_instruments():
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        instruments_df = pd.read_csv(file)
+
+    instruments_html = instruments_df.to_html()
+
+    # store the instruments in redis!
+    for index, row in instruments_df.iterrows():
+        instrument_id = row["InstrumentID"]
+        attributes = row.to_dict()
+        for key, value in attributes.items():
+            redis_client_instrument.hset(instrument_id, key, value)
+
+    return instruments_html, 200
+
+
+#### UPDATES TO REDIS #####
 # Matching Policies failed? storing in redis exchange_report hash with order id as key
 def store_failed_orders(order_id, reason):
     redis_client_xchange_report.hset("exchange_report", order_id, reason)
@@ -184,6 +262,39 @@ def generate_client_report():
     # this client report consits a position of each client at the end of the trading day for each instrument.
 
     return jsonify({"client_report": client_report_csv}), 200
+
+
+def generate_instrument_report():
+    instrument_report = redis_client_instrument_report.hgetall("instrument_report")
+    instrument_report_csv = instrument_report.to_csv(index=False)
+    print(instrument_report_csv)
+    return jsonify({"instrument_report": instrument_report_csv}), 200
+
+
+def calculate_vwap(instrument):
+    # Calculate VWAP (Volume Weighted Average Price)
+    # VWAP = (Typical Price * Volume) / Total Volume
+    success = False
+    vwap = 0
+    instrument_data = redis_client_instrument.hgetall(instrument)
+    if instrument_data:
+        day_high = float(instrument_data.get("DayHigh", 0))
+        day_low = float(instrument_data.get("DayLow", 0))
+        closed_price = float(instrument_data.get("ClosedPrice", 0))
+        total_volume_traded = float(instrument_data.get("TotalVolumeTraded", 0))
+
+        if total_volume_traded != 0:
+            typical_price = (day_high + day_low + closed_price) / 3
+            vwap = (typical_price * total_volume_traded) / total_volume_traded
+            redis_client_instrument.hset(instrument, "VWAP", vwap)
+            success = True
+            return vwap, success
+        else:
+            print("Total volume traded is 0!!, cannot calculate VWAP.")
+            return vwap, success
+    else:
+        print(f"No data found for instrument {instrument}.")
+        return vwap, success
 
 
 if __name__ == "__main__":
