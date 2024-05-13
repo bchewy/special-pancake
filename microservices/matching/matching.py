@@ -154,7 +154,7 @@ def did_not_pass(check):
     elif check == "position":
         error_queue.append("REJECTED - POSITION CHECK FAILED")
 
-book = OrderBook()
+
 
 def validate_instrument(instrument_curr, client_curr, quantity, lot_size):
     if instrument_curr not in client_curr:
@@ -201,6 +201,8 @@ def validate_order(
 # print(ORDERS)
 # print(CLIENTS)
 # print(INSTRUMENTS)
+
+book = OrderBook()
 
 open_period = False
 continuous_period = False
@@ -263,16 +265,8 @@ for order in ORDERS:
             
         book.add_order(order.get("Side"), order.get("Price"), order.get("ClientRating"), order.get("Quantity"), order.get("Client"), order.get("Time"))
             
-
-# book.add_order("buy", "Market", 95, 100, "client1") 
-# book.add_order("buy", 300, 90, 50, "client2") 
-# book.add_order("sell", 305, 85, 30, "client3") 
-# book.add_order("sell", "Market", 92, 70, "client4") 
- 
-# book.match_order()  # Perform matching 
-# book.print_book()  # Print remaining orders in the book
-
-
+print(book.buy_heap)
+print(book.sell_heap)
 
 
 
