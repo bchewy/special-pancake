@@ -9,9 +9,14 @@ import pika
 app = Flask(__name__)
 
 # Initialize Redis client
-redis_client = Redis(host="localhost", port=6379, db=0)
+redis_client_orders  = Redis(host="localhost", port=6379, db=0)
 redis_client_client = Redis(host="localhost", port=6379, db=1)
 redis_client_instrument = Redis(host="localhost", port=6379, db=2)
+
+# Reports
+redis_client_xchange_report = Redis(host="localhost", port=6379, db=3)
+redis_client_client_report = Redis(host="localhost", port=6379, db=4)
+redis_client_instrument_report = Redis(host="localhost", port=6379, db=5)
 
 
 # Initialize RabbitMQ connection
@@ -95,7 +100,7 @@ def queue_client(order_id, order_value):
 
     # seller or buyer
     if order_value["Side"] == "Sell":
-        did_not_pass
+        pass
     elif order_value["Side"] == "Buy":
         pass
 
@@ -203,8 +208,8 @@ def add_order():
 
 
 ##### REPORT #####
-def generate_report():
-    pass
+def generate_xchange_report():
+    
 
 
 
