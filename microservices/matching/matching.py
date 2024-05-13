@@ -205,18 +205,6 @@ def init_instruments():
 
 
 #### INSTRUMENTS ###################################################################
-@app.route("/instrument_trigger", methods=["POST"])
-def instrument_trigger():
-    print("Initializing instrument init; ")
-    return init_instrument_track()
-
-
-@app.route("/instrument_update", methods=["POST"])
-def instrument_update():
-    instrument = request.json["instrument"]
-    item = request.json["item"]
-    value = request.json["value"]
-    return update_instrument_track(instrument, item, value)
 
 
 # "check" defines which kind of policy it is
@@ -387,8 +375,29 @@ def generate_client_report():
 
 
 def generate_instrument_report():
-    instrument_report = redis_client_instrument_report.hgetall("instrument_report")
+    instrument_ids = redis_client_instrument.keys()
+    print(instrument_ids)
+
+    instrument_report = []
+    for instrument_id in instrument_ids:
+        instrument_data = redis_client_instrument.hgetall(instrument_id)
+        for instrument_id, quantity in instrument_data.items():
+            instrument_report.append(
+                [
+                    instrument_id.decode("utf-8"),
+                    instrument_id.decode("utf-8"),
+                    instrument_id.decode("utf-8"),
+                    instrument_id.decode("utf-8"),
+                ]
+            )
+
+    instrument_report = pd.DataFrame(
+        instrument_report,
+        columns=["Instrument ID", "Open Price", "Close Price", "Total Volume"],
+    )
+
     instrument_report_csv = instrument_report.to_csv(index=False)
+    print("instrument report here: ")
     print(instrument_report_csv)
     return jsonify({"instrument_report": instrument_report_csv}), 200
 
