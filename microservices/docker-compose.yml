@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  report_service:
+    build: ./microservices/report
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+    volumes:
+      - ./microservices/report:/app
+    command: python report.py
+  matching_engine:
+    build: ./microservices/matching
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+    volumes:
+      - ./microservices/matching:/app
+    command: python matching.py
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+volumes:
+  redis_data:
+    external: false
