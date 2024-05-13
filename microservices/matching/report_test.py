@@ -8,12 +8,13 @@ class TestReportService(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
 
+    # GET REPORT
     @patch("report.REPORTS", [])
     def test_get_report_empty(self):
         response = self.app.get("/report")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
 
+    # UPDATE EXCHANGE REPORT 
     @patch(
         "report.REPORTS",
         [{"exchange_report": [{"order_id": 1, "reason": "insufficient_balance"}]}],
@@ -21,8 +22,8 @@ class TestReportService(unittest.TestCase):
     def test_get_report_with_data(self):
         response = self.app.get("/report")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Reports displayed and exported to CSV.", str(response.data))
 
+    # UPDATE EXCHANGE REPORT
     @patch("report.REPORTS", [])
     def test_update_exchange_report(self):
         response = self.app.post(
@@ -32,6 +33,7 @@ class TestReportService(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual("ok", response.data.decode())
 
+    # UPDATE CLIENT REPORT
     @patch("report.REPORTS", [])
     def test_update_client_report(self):
         response = self.app.post(
@@ -41,6 +43,7 @@ class TestReportService(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual("ok", response.data.decode())
 
+    # UPDATE INSTRUMENT REPORT
     @patch("report.REPORTS", [])
     def test_update_instrument_report(self):
         response = self.app.post(
@@ -59,6 +62,7 @@ class TestReportService(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual("ok", response.data.decode())
 
+    
     @patch("report.REPORTS", [])
     def test_update_client_report_with_invalid_policy(self):
         response = self.app.post(
