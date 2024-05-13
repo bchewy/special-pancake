@@ -61,7 +61,7 @@ class TestReportService(unittest.TestCase):
     def test_update_client_report_with_invalid_policy(self):
         response = self.app.post(
             "/update_client_report",
-            json={"client_id": 2, "order_id": 20, "reason": "invalid policy"},
+            json={"client_id": 2, "instrument_id": "SIA", "net_profit": 100},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual("ok", response.data.decode())
