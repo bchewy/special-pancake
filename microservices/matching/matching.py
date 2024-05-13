@@ -238,9 +238,6 @@ for order in ORDERS:
     for json_obj in CLIENTS:
         if json_obj.get("ClientID") == order.get("Client"):
             client_curr = json_obj.get("Currencies")
-            position_check = json_obj.get("PositionCheck")
-            if (position_check == "Y" or position_check == "y"):
-                validate_client(order.get("Client"), order.get("Instrument"))
             break
     validate_order(
         order.get("Client"),
@@ -265,6 +262,7 @@ for order in ORDERS:
             order.get("Quantity"),
             order.get("Client"),
             order.get("Time"),
+            order.get("OrderID"),
         )
 
     elif continuous_period:
@@ -279,6 +277,7 @@ for order in ORDERS:
             order.get("Quantity"),
             order.get("Client"),
             order.get("Time"),
+            order.get("OrderID"),
         )
         book.match_order()
     elif closed_period:
@@ -294,6 +293,7 @@ for order in ORDERS:
             order.get("Quantity"),
             order.get("Client"),
             order.get("Time"),
+            order.get("OrderID"),
         )
 
 print("-------------------")

@@ -65,13 +65,13 @@ def update_exchange_report():
 def update_client_report():
     # body: {client_report: {client_id: 1, order_id: 1, reason: "insufficient_balance"}]}
     client_id = request.json["client_id"]
-    order_id = request.json["order_id"]
-    reason = request.json["reason"]
+    instrument_id = request.json["instrument_id"]
+    net_profit = request.json["net_profit"]
 
     client_report_dict = {
         "client_id": client_id,
-        "order_id": order_id,
-        "reason": reason,
+        "instrument_id": instrument_id,
+        "net_profit": net_profit,
     }
 
     found = False
