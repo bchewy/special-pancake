@@ -86,29 +86,30 @@ def validate_instrument(
 
 
 def validate_client(client_id, position_check):
-    if position_check == 'Y' or 'y':
-        #pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+    if position_check == "Y" or "y":
+        # pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
         did_not_pass("position")
         return False
     return True
 
+
 def pull_from_redis(key_id):
     items = r.hgetall(key_id)
-    
 
-#for creating and queueing mega list
+
+# for creating and queueing mega list
 # # get ALL data from redis
 # # order_id = redis_client.keys()
 # # data = redis_client.values()
 # # order_value = json.loads(data)
 # def queue_client(order_id, order_value):
-        
-#     # seller or buyer    
+
+#     # seller or buyer
 #     if order_value['Side'] == 'Sell':
 
 #     elif order_value['Side'] == 'Buy':
 
-        
+
 # # matching engine
 # # seller_order = seller_list[0]
 # # buyer_order = buyer_list[0]
@@ -118,6 +119,7 @@ def pull_from_redis(key_id):
 #     #market is highest prio
 #     #calculates quantity
 #     #updates redis
+
 
 @app.route("/", methods=["GET"])
 def index():
@@ -215,6 +217,8 @@ def instrument_update():
     item = request.json["item"]
     value = request.json["value"]
     return update_instrument_track(instrument, item, value)
+
+
 # "check" defines which kind of policy it is
 # Call this function if the any matching policies fail
 def did_not_pass(check):
@@ -277,6 +281,11 @@ def get_client_report():
     # sample: need to call update client pos each time a trade is made
     # update_client_position("A1", "SIA", 100)
     return generate_client_report()
+
+
+@app.route("/instrument_report", methods=["POST"])
+def instrument_report():
+    return generate_instrument_report()
 
 
 #### HELPER FUNCTIONS FOR REPORTS #####
