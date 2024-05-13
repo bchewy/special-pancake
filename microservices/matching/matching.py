@@ -24,10 +24,13 @@ app = Flask(__name__)
 INSTRUMENTS = []
 ORDERS = []
 CLIENTS = []
+STOCKS = []
 
 INSTRUMENTS.extend(pd.read_csv("data-set/example-set/input_instruments.csv").to_dict(orient='records'))
 ORDERS.extend(pd.read_csv("data-set/example-set/input_orders.csv").to_dict(orient='records'))
 CLIENTS.extend(pd.read_csv("data-set/example-set/input_clients.csv").to_dict(orient='records'))
+STOCKS.extend(pd.read_csv("data-set/example-set/stocks.csv").to_dict(orient='records'))
+
 
 # Initialize RabbitMQ connection
 rabbitmq_credentials = pika.PlainCredentials("guest", "guest")
@@ -173,12 +176,13 @@ def validate_instrument(instrument_curr, client_curr, quantity, lot_size, order_
     return True
 
 
-def validate_client(client_id, position_check):
+def validate_client(client_id, instrument_id):
     # Check if sufficient balance
     if position_check == "Y" or "y":
         # Check if client has sufficient balance
-        pass
-        
+        if instrument_id in STOCKS:
+            return False
+        return True
     return True
 
 
@@ -246,6 +250,8 @@ for order in ORDERS:
         if json_obj.get("ClientID") == order.get("Client"):
             client_curr = json_obj.get("Currencies")
             position_check = json_obj.get("PositionCheck")
+            if (position_check == "Y" or position_check == "y"):
+                validate_client(order.get("Client"), order.get("Instrument"))
             break
     validate_order(order.get("Client"), instrument_curr, client_curr, order.get("Quantity"),lot_size, position_check, order.get("OrderID"))
     
