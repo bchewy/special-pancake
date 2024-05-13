@@ -149,7 +149,7 @@ def init_orders():
         order_id = row["OrderID"]
         attributes = row.to_dict()
         for key, value in attributes.items():
-            redis_client.hset(order_id, key, value)
+            redis_client_orders.hset(order_id, key, value)
 
     # Return HTML string
     return orders_html, 200
