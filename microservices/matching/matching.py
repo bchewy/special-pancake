@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 from redis import Redis
+import json
+import heapq
 import pandas as pd
 from flask import send_file
 import pika
@@ -31,13 +33,70 @@ rabbitmq_channel.queue_bind(
     exchange="order_exchange", queue="log_queue", routing_key="order.log"
 )
 
+#mega list, sorted by PRICE, THEN by RATING
+seller_queue = []
+buyer_queue = []
+
+#validation checks
+def validate_order(client_id, instrument_id, instrument_curr, client_curr, quantity, lot_size, position_check):
+    if instrument_id not in redis_client_instrument.keys():
+        return False
+    if client_id not in redis_client_client.keys():
+        return False
+    if not validate_instrument(instrument_id, instrument_curr, client_curr, quantity, lot_size):
+        #log error and reason
+        return False
+    if not validate_client(client_id, position_check):
+        #log error and reason
+        return False
+    return True
+    
+def validate_instrument(instrument_id, instrument_curr, client_curr, quantity, lot_size):
+    if instrument_curr not in client_curr:
+        return False
+    if quantity % lot_size != 0:
+        return False
+    return True
+
+    # client_data = queue_list[0]
+    # client_id = client_data['client_id']
+    # client_position_check = client_data['position_check']
+def validate_client(client_id, position_check):
+    if position_check == 'Y' or 'y':
+        #pull from data store NEED TO EDIT,, SHD HAVE IF-ELSE LATER
+        return False
+    return True
+
+#for creating and queueing mega list
+
+# get ALL data from redis
+# order_id = redis_client.keys()
+# data = redis_client.values()
+# order_value = json.loads(data)
+def queue_client(order_id, order_value):
+        
+    # seller or buyer    
+    if order_value['Side'] == 'Sell':
+
+    elif order_value['Side'] == 'Buy':
+
+        
+# matching engine
+# seller_order = seller_list[0]
+# buyer_order = buyer_list[0]
+# NEEDA HAVE PORTION WHERE IT CHECKS MARKET-MARKET by INDEXING [-1]
+
+def match_order(seller_order, buyer_order):
+    #market is highest prio
+    #calculates quantity
+    #updates redis
 
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({"message": "Order microservice is running"}), 200
 
 
-# initilaize orders
+# initialize orders
 # this /orders feeds the input_orders in.
 @app.route("/orders", methods=["POST"])
 def init_orders():
