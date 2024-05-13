@@ -132,6 +132,8 @@ def get_exchange_report():
 
 @app.route("/client_report", methods=["GET"])
 def get_client_report():
+    # sample: need to call update client pos each time a trade is made
+    update_client_position("A1", "SIA", 100)
     return generate_client_report()
 
 
@@ -160,7 +162,7 @@ def generate_xchange_report():
 
 def generate_client_report():
     client_ids = redis_client_client_report.keys()
-    client_report = pd.DataFrame(client_ids, columns=["Client ID"])
+    client_report = pd.DataFrame(client_ids, columns=["Client ID", "Instrument ID", "Net Position"])
     client_report_csv = client_report.to_csv(index=False)
     print(client_report_csv)
     # this client report consits a position of each client at the end of the trading day for each instrument.
